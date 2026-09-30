@@ -1,24 +1,25 @@
-FROM node:22-alpine AS builder
-
-RUN npm install -g npm@12.1.0
+FROM node:22-alpine AS deps
 
 WORKDIR /app
 
 COPY package*.json ./
-
-RUN npm install 
-
-RUN npm install -g npm@12.1.0
-
-COPY . .
+RUN npm ci --omit=dev
 
 FROM node:22-alpine
 
-RUN npm install -g npm@12.1.0
-
 WORKDIR /app
+ENV NODE_ENV=production
 
-COPY --from=builder /app .
+COPY --from=deps /app/node_modules ./node_modules
+COPY package*.json ./
+COPY server.js ./
+COPY app ./app
+COPY public ./public
+
+RUN rm -rf /usr/local/lib/node_modules/npm \
+    /usr/local/bin/npm \
+    /usr/local/bin/npx \
+    /root/.npm
 
 EXPOSE 80
 

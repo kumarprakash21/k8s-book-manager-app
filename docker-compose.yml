@@ -1,8 +1,6 @@
 version: '3.8'
 
 services:
-
-  # ✅ Node App
   app:
     build: .
     container_name: books_app
@@ -12,10 +10,7 @@ services:
       - mongo
     environment:
       - MONGO_URL=mongodb://mongo:27017/Books
-    volumes:
-      - .:/app
 
-  # ✅ MongoDB
   mongo:
     image: mongo:6
     container_name: books_mongo
