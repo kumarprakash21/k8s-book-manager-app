@@ -13,12 +13,17 @@ sed -i "s|image: .*|image: ${IMAGE_NAME}:${IMAGE_TAG}|g" "$MANIFEST_FILE"
 echo "Updated image:"
 grep image "$MANIFEST_FILE"
 
+if git diff --quiet -- "$MANIFEST_FILE"; then
+    echo "No image tag change detected; nothing to commit or push."
+    exit 0
+fi
+
 git config --global user.email "jenkins@example.com"
 git config --global user.name "Jenkins"
 
 git add "$MANIFEST_FILE"
 
-git commit -m "[skip ci] Update image tag to ${IMAGE_TAG}" || echo "No changes to commit"
+git commit -m "[skip ci] Update image tag to ${IMAGE_TAG}"
 
 git push origin main
 

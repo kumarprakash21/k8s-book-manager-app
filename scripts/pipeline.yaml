@@ -7,11 +7,45 @@ pipeline {
         }
 
     stages {
+
         stage('Code') {
             steps {
                 echo 'This block is cloning the code from git'
                 git url:"https://github.com/kumarprakash21/k8s-book-manager-app.git",branch:"main"
                 echo " Cloning is completed"
+            }
+        }
+        stage('Check Commit') {
+            steps {
+                script {
+                    def msg = sh(
+                        script: "git log -1 --pretty=%B",
+                        returnStdout: true
+                    ).trim()
+
+                    def changedFilesOutput = sh(
+                        script: '''
+                            if git rev-parse HEAD^ >/dev/null 2>&1; then
+                                git diff --name-only HEAD^ HEAD
+                            else
+                                git show --pretty="" --name-only HEAD
+                            fi
+                        ''',
+                        returnStdout: true
+                    ).trim()
+
+                    def changedFiles = changedFilesOutput
+                        ? changedFilesOutput.split('\\n').collect { it.trim() }.findAll { it }
+                        : []
+
+                    def manifestOnlyChange = changedFiles && changedFiles.every { it == env.MANIFEST_FILE }
+                    def skipCiCommit = msg ==~ /(?s).*\[(skip ci|ci skip)\].*/
+
+                    if (skipCiCommit || manifestOnlyChange) {
+                        currentBuild.result = 'NOT_BUILT'
+                        error("Skipping build for non-code commit. Changed files: ${changedFiles.join(', ')}")
+                    }
+                }
             }
         }
         stage('Scan via Trivy'){
