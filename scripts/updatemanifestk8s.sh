@@ -22,5 +22,5 @@ git commit -m "[skip ci] Update image tag to ${IMAGE_TAG}" || echo "No changes t
 
 git push origin main
 
-echo "Manifest pushed successfully"
+echo "Manifest pushed successfullly"
 
