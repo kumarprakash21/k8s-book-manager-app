@@ -1,0 +1,13 @@
+:root { --ink: #172033; --muted: #667085; --line: #e7eaf0; --surface: #fff; --page: #f6f8fb; }
+body { background: var(--page); color: var(--ink); font-family: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif; }
+.eyebrow { color: #356ae6; font-size: .72rem; font-weight: 700; letter-spacing: .12em; }
+h1 { font-size: clamp(2rem, 5vw, 3.25rem); letter-spacing: -.03em; font-weight: 750; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 1.25rem; box-shadow: 0 8px 24px rgba(23, 32, 51, .05); }
+.form-control { border-color: #d9dee8; min-height: 44px; }
+.form-control:focus { border-color: #356ae6; box-shadow: 0 0 0 .2rem rgba(53, 106, 230, .15); }
+.search { max-width: 360px; }
+.table thead th { color: var(--muted); font-size: .75rem; text-transform: uppercase; letter-spacing: .05em; border-bottom-width: 1px; }
+.table td, .table th { padding: .9rem .65rem; border-color: var(--line); }
+.empty-state { color: var(--muted); padding: 3rem 1rem; text-align: center; }
+code { color: #536174; }
+@media (max-width: 576px) { .panel { padding: 1rem; } .table { min-width: 720px; } }

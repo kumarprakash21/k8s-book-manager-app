@@ -1,91 +1,35 @@
 <!doctype html>
-<html ng-app="myApp" ng-controller="myCtrl">
-
+<html lang="en" ng-app="myApp" ng-controller="myCtrl">
 <head>
     <meta charset="utf-8">
-    <title>Books Manager</title>
-
-    <!-- ✅ Bootstrap -->
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Book Manager</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-
-    <!-- ✅ Angular -->
+    <link rel="stylesheet" href="styles.css">
     <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.7.2/angular.min.js"></script>
     <script src="script.js"></script>
 </head>
-
-<body class="bg-light">
-
-<div class="container mt-5">
-
-    <h2 class="text-center mb-4 text-primary">📚 Book Manager</h2>
-
-    <!-- ✅ Add Book Card -->
-    <div class="card shadow p-4 mb-5">
-        <h4 class="mb-3">Add New Book</h4>
-
-        <div class="row">
-            <div class="col-md-3">
-                <input type="text" class="form-control" placeholder="Book Name" ng-model="Name">
+<body>
+<main class="container py-4 py-md-5">
+    <header class="mb-4"><p class="eyebrow mb-2">LIBRARY CATALOG</p><h1 class="mb-2">Book Manager</h1><p class="text-secondary mb-0">Keep your collection organized in one place.</p></header>
+    <div class="alert alert-danger" ng-if="error" role="alert">{{error}}</div>
+    <section class="panel mb-4">
+        <div class="d-flex justify-content-between align-items-center mb-3"><h2 class="h5 mb-0">{{editing ? 'Edit book' : 'Add a book'}}</h2><button type="button" class="btn btn-link btn-sm" ng-if="editing" ng-click="cancelEdit()">Cancel</button></div>
+        <form name="bookForm" ng-submit="saveBook(bookForm)" novalidate>
+            <div class="row g-3">
+                <div class="col-md-6"><label class="form-label" for="name">Title</label><input id="name" name="name" class="form-control" ng-model="book.name" required maxlength="120" placeholder="e.g. The Hobbit"></div>
+                <div class="col-md-6"><label class="form-label" for="author">Author</label><input id="author" name="author" class="form-control" ng-model="book.author" required maxlength="120" placeholder="e.g. J.R.R. Tolkien"></div>
+                <div class="col-md-6"><label class="form-label" for="isbn">ISBN</label><input id="isbn" name="isbn" class="form-control" ng-model="book.isbn" required maxlength="32" placeholder="Unique ISBN"></div>
+                <div class="col-md-3"><label class="form-label" for="pages">Pages</label><input id="pages" name="pages" type="number" min="1" max="100000" class="form-control" ng-model="book.pages" required placeholder="300"></div>
+                <div class="col-md-3 d-flex align-items-end"><button class="btn btn-primary w-100" type="submit" ng-disabled="saving">{{saving ? 'Saving...' : (editing ? 'Save changes' : 'Add book')}}</button></div>
             </div>
-
-            <div class="col-md-2">
-                <input type="text" class="form-control" placeholder="ISBN" ng-model="Isbn">
-            </div>
-
-            <div class="col-md-3">
-                <input type="text" class="form-control" placeholder="Author" ng-model="Author">
-            </div>
-
-            <div class="col-md-2">
-                <input type="number" class="form-control" placeholder="Pages" ng-model="Pages">
-            </div>
-
-            <div class="col-md-2">
-                <button class="btn btn-success w-100" ng-click="add_book()">
-                    ➕ Add
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- ✅ Book Table -->
-    <div class="card shadow p-4">
-        <h4 class="mb-3">Book List</h4>
-
-        <table class="table table-striped table-hover">
-            <thead class="table-dark">
-                <tr>
-                    <th>Action</th>
-                    <th>Name</th>
-                    <th>ISBN</th>
-                    <th>Author</th>
-                    <th>Pages</th>
-                </tr>
-            </thead>
-
-            <tbody>
-                <tr ng-repeat="book in books track by $index">
-                    <td>
-                        <button class="btn btn-danger btn-sm"
-                            ng-click="del_book(book)">
-                            ❌ Delete
-                        </button>
-                    </td>
-                    <td>{{book.name}}</td>
-                    <td>{{book.isbn}}</td>
-                    <td>{{book.author}}</td>
-                    <td>{{book.pages}}</td>
-                </tr>
-            </tbody>
-        </table>
-
-        <!-- ✅ Empty State -->
-        <div ng-if="books.length === 0" class="text-center text-muted">
-            No books added yet.
-        </div>
-    </div>
-
-</div>
-
+        </form>
+    </section>
+    <section class="panel">
+        <div class="d-flex flex-column flex-md-row gap-3 justify-content-between align-items-md-center mb-3"><div><h2 class="h5 mb-1">Your books</h2><span class="text-secondary small">{{(books | filter:search).length}} of {{books.length}} books</span></div><input class="form-control search" type="search" ng-model="search" placeholder="Search title, author or ISBN" aria-label="Search books"></div>
+        <div class="table-responsive" ng-if="!loading && (books | filter:search).length"><table class="table align-middle mb-0"><thead><tr><th>Title</th><th>Author</th><th>ISBN</th><th class="text-end">Pages</th><th class="text-end">Actions</th></tr></thead><tbody><tr ng-repeat="book in books | filter:search track by book._id"><td class="fw-semibold">{{book.name}}</td><td>{{book.author}}</td><td><code>{{book.isbn}}</code></td><td class="text-end">{{book.pages}}</td><td class="text-end text-nowrap"><button class="btn btn-sm btn-outline-secondary me-1" ng-click="editBook(book)">Edit</button><button class="btn btn-sm btn-outline-danger" ng-click="del_book(book)">Delete</button></td></tr></tbody></table></div>
+        <div class="empty-state" ng-if="loading">Loading your books...</div><div class="empty-state" ng-if="!loading && !books.length">No books yet. Add your first one above.</div><div class="empty-state" ng-if="!loading && books.length && !(books | filter:search).length">No books match your search.</div>
+    </section>
+</main>
 </body>
 </html>
