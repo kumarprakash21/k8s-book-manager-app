@@ -1,0 +1,71 @@
+pipeline {
+    agent any
+    environment {
+        IMAGE_NAME = 'prakashgautam1998/book-app'
+        IMAGE_TAG = "${BUILD_NUMBER}"
+        MANIFEST_FILE = 'k8s/deployment.yml'
+        }
+
+    stages {
+        stage('Code') {
+            steps {
+                echo 'This block is cloning the code from git'
+                git url:"https://github.com/kumarprakash21/k8s-book-manager-app.git",branch:"main"
+                echo " Cloning is completed"
+            }
+        }
+        stage('Scan via Trivy'){
+            steps {
+                echo "Scan started by Trivy"
+                sh 'trivy fs .'
+                echo "Scan completed successfully"
+            }
+        }
+        stage('Build') {
+            steps {
+                echo 'This is building the docker image'
+                sh 'docker build -t ${IMAGE_NAME}:${IMAGE_TAG} .'
+            }
+        }
+        stage('Scan Image via Trivy') {
+            steps {
+                sh '''
+                trivy image \
+                --severity HIGH,CRITICAL \
+                --exit-code 1 \
+                ${IMAGE_NAME}:${IMAGE_TAG}
+                '''
+            }
+        }
+        stage('Push') {
+            steps { 
+                withCredentials([
+                    usernamePassword(credentialsId: 'dockerhub',
+                        usernameVariable: 'DOCKER_USER',passwordVariable: 'DOCKER_PASS'
+                    )]) {
+                sh '''
+            echo "Pushing image to docker hub"
+            echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
+            
+            docker push ${IMAGE_NAME}:${IMAGE_TAG}
+            '''
+}
+}
+}
+        stage('Update Manifest') {
+            steps {
+                withCredentials([usernamePassword(
+                credentialsId: 'github',
+                usernameVariable: 'GIT_USER',
+                passwordVariable: 'GIT_TOKEN'
+                )]) {
+                sh '''
+                    git remote set-url origin https://${GIT_USER}:${GIT_TOKEN}@github.com/kumarprakash21/k8s-book-manager-app.git
+                    chmod +x scripts/updatemanifestk8s.sh
+                    ./scripts/updatemanifestk8s.sh
+                    '''
+                    }
+                }
+            }
+    }
+}
