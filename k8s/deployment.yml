@@ -18,7 +18,7 @@ spec:
     spec:
       containers:
       - name: book-manager-app
-        image: prakashgautam1998/book-app:17
+        image: prakashgautam1998/book-app:18
         ports:
         - containerPort: 80
         env:
