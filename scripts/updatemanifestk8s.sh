@@ -18,7 +18,7 @@ git config --global user.name "Jenkins"
 
 git add "$MANIFEST_FILE"
 
-git commit -m "Update image tag to ${IMAGE_TAG}" || echo "No changes to commit"
+git commit -m "[skip ci] Update image tag to ${IMAGE_TAG}" || echo "No changes to commit"
 
 git push origin main
 
