@@ -4,6 +4,7 @@ pipeline {
         IMAGE_NAME = 'prakashgautam1998/book-app'
         IMAGE_TAG = "${BUILD_NUMBER}"
         MANIFEST_FILE = 'k8s/deployment.yml'
+        SKIP_PIPELINE = 'false'
         }
 
     stages {
@@ -42,13 +43,17 @@ pipeline {
                     def skipCiCommit = msg ==~ /(?s).*\[(skip ci|ci skip)\].*/
 
                     if (skipCiCommit || manifestOnlyChange) {
+                        env.SKIP_PIPELINE = 'true'
                         currentBuild.result = 'NOT_BUILT'
-                        error("Skipping build for non-code commit. Changed files: ${changedFiles.join(', ')}")
+                        echo "Skipping build for non-code commit. Changed files: ${changedFiles.join(', ')}"
                     }
                 }
             }
         }
         stage('Scan via Trivy'){
+            when {
+                expression { env.SKIP_PIPELINE != 'true' }
+            }
             steps {
                 echo "Scan started by Trivy"
                 sh 'trivy fs .'
@@ -56,12 +61,18 @@ pipeline {
             }
         }
         stage('Build') {
+            when {
+                expression { env.SKIP_PIPELINE != 'true' }
+            }
             steps {
                 echo 'This is building the docker image'
                 sh 'docker build -t ${IMAGE_NAME}:${IMAGE_TAG} .'
             }
         }
         stage('Scan Image via Trivy') {
+            when {
+                expression { env.SKIP_PIPELINE != 'true' }
+            }
             steps {
                 sh '''
                 trivy image \
@@ -72,6 +83,9 @@ pipeline {
             }
         }
         stage('Push') {
+            when {
+                expression { env.SKIP_PIPELINE != 'true' }
+            }
             steps { 
                 withCredentials([
                     usernamePassword(credentialsId: 'dockerhub',
@@ -87,6 +101,9 @@ pipeline {
 }
 }
         stage('Update Manifest') {
+            when {
+                expression { env.SKIP_PIPELINE != 'true' }
+            }
             steps {
                 withCredentials([usernamePassword(
                 credentialsId: 'github',
@@ -101,5 +118,13 @@ pipeline {
                     }
                 }
             }
+        stage('Skip Non-Code Commit') {
+            when {
+                expression { env.SKIP_PIPELINE == 'true' }
+            }
+            steps {
+                echo 'Only the Kubernetes manifest or a skip-ci commit changed; no image build or manifest update is needed.'
+            }
+        }
     }
 }
