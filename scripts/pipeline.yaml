@@ -1,14 +1,18 @@
 pipeline {
     agent any
+    options {
+        // The repository is checked out explicitly in the Code stage.
+        skipDefaultCheckout(true)
+    }
     environment {
         IMAGE_NAME = 'prakashgautam1998/book-app'
         IMAGE_TAG = "${BUILD_NUMBER}"
         MANIFEST_FILE = 'k8s/deployment.yml'
+        CODE_CHANGED = 'false'
         SKIP_PIPELINE = 'false'
         }
 
     stages {
-
         stage('Code') {
             steps {
                 echo 'This block is cloning the code from git'
@@ -16,44 +20,39 @@ pipeline {
                 echo " Cloning is completed"
             }
         }
-        stage('Check Commit') {
+        stage('Check Changes') {
             steps {
                 script {
-                    def msg = sh(
-                        script: "git log -1 --pretty=%B",
+                    def commitMessage = sh(
+                        script: 'git log -1 --pretty=%B',
+                        returnStdout: true
+                    ).trim()
+                    def changedFiles = sh(
+                        script: 'git diff-tree --no-commit-id --name-only -r HEAD',
                         returnStdout: true
                     ).trim()
 
-                    def changedFilesOutput = sh(
-                        script: '''
-                            if git rev-parse HEAD^ >/dev/null 2>&1; then
-                                git diff --name-only HEAD^ HEAD
-                            else
-                                git show --pretty="" --name-only HEAD
-                            fi
-                        ''',
-                        returnStdout: true
-                    ).trim()
+                    // A manifest-only or script-only commit must not start a new image build.
+                    def codeFiles = changedFiles ? changedFiles.split('\\n').findAll { file ->
+                        !file.startsWith('k8s/') && !file.startsWith('scripts/')
+                    } : []
+                    def skipCiCommit = commitMessage ==~ /(?s).*\[(skip ci|ci skip)\].*/
 
-                    def changedFiles = changedFilesOutput
-                        ? changedFilesOutput.split('\\n').collect { it.trim() }.findAll { it }
-                        : []
+                    env.CODE_CHANGED = codeFiles && !skipCiCommit ? 'true' : 'false'
+                    env.SKIP_PIPELINE = env.CODE_CHANGED == 'true' ? 'false' : 'true'
+                    echo "Changed files: ${changedFiles ?: 'none'}"
+                    echo "Skip-CI commit: ${skipCiCommit}"
+                    echo "Application code changed: ${env.CODE_CHANGED}"
 
-                    def manifestOnlyChange = changedFiles && changedFiles.every { it == env.MANIFEST_FILE }
-                    def skipCiCommit = msg ==~ /(?s).*\[(skip ci|ci skip)\].*/
-
-                    if (skipCiCommit || manifestOnlyChange) {
-                        env.SKIP_PIPELINE = 'true'
+                    if (env.CODE_CHANGED == 'false') {
                         currentBuild.result = 'NOT_BUILT'
-                        echo "Skipping build for non-code commit. Changed files: ${changedFiles.join(', ')}"
+                        echo 'Only Kubernetes manifests or pipeline scripts changed; skipping the build.'
                     }
                 }
             }
         }
         stage('Scan via Trivy'){
-            when {
-                expression { env.SKIP_PIPELINE != 'true' }
-            }
+            when { expression { env.CODE_CHANGED == 'true' } }
             steps {
                 echo "Scan started by Trivy"
                 sh 'trivy fs .'
@@ -61,18 +60,14 @@ pipeline {
             }
         }
         stage('Build') {
-            when {
-                expression { env.SKIP_PIPELINE != 'true' }
-            }
+            when { expression { env.CODE_CHANGED == 'true' } }
             steps {
                 echo 'This is building the docker image'
                 sh 'docker build -t ${IMAGE_NAME}:${IMAGE_TAG} .'
             }
         }
         stage('Scan Image via Trivy') {
-            when {
-                expression { env.SKIP_PIPELINE != 'true' }
-            }
+            when { expression { env.CODE_CHANGED == 'true' } }
             steps {
                 sh '''
                 trivy image \
@@ -83,9 +78,7 @@ pipeline {
             }
         }
         stage('Push') {
-            when {
-                expression { env.SKIP_PIPELINE != 'true' }
-            }
+            when { expression { env.CODE_CHANGED == 'true' } }
             steps { 
                 withCredentials([
                     usernamePassword(credentialsId: 'dockerhub',
@@ -101,9 +94,7 @@ pipeline {
 }
 }
         stage('Update Manifest') {
-            when {
-                expression { env.SKIP_PIPELINE != 'true' }
-            }
+            when { expression { env.CODE_CHANGED == 'true' } }
             steps {
                 withCredentials([usernamePassword(
                 credentialsId: 'github',
@@ -118,13 +109,5 @@ pipeline {
                     }
                 }
             }
-        stage('Skip Non-Code Commit') {
-            when {
-                expression { env.SKIP_PIPELINE == 'true' }
-            }
-            steps {
-                echo 'Only the Kubernetes manifest or a skip-ci commit changed; no image build or manifest update is needed.'
-            }
-        }
     }
 }

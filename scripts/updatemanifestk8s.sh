@@ -23,7 +23,8 @@ git config --global user.name "Jenkins"
 
 git add "$MANIFEST_FILE"
 
-git commit -m "[skip ci] Update image tag to ${IMAGE_TAG}"
+# Keep the generated commit out of CI systems that honor either convention.
+git commit -m "chore: update image tag to ${IMAGE_TAG} [skip ci] [ci skip]"
 
 git push origin main
 
