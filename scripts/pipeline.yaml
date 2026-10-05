@@ -1,58 +1,24 @@
+@Library("shared") _
 pipeline {
     agent any
-    options {
-        // The repository is checked out explicitly in the Code stage.
-        skipDefaultCheckout(true)
-    }
+   
     environment {
-        IMAGE_NAME = 'prakashgautam1998/book-app'
+        Docker_Hub_user = 'prakashgautam1998'
+        IMAGE_NAME = 'book-app'
         IMAGE_TAG = "${BUILD_NUMBER}"
         MANIFEST_FILE = 'k8s/deployment.yml'
-        CODE_CHANGED = 'false'
-        SKIP_PIPELINE = 'false'
         }
 
     stages {
         stage('Code') {
             steps {
-                echo 'This block is cloning the code from git'
-                git url:"https://github.com/kumarprakash21/k8s-book-manager-app.git",branch:"main"
-                echo " Cloning is completed"
-            }
-        }
-        stage('Check Changes') {
-            steps {
-                script {
-                    def commitMessage = sh(
-                        script: 'git log -1 --pretty=%B',
-                        returnStdout: true
-                    ).trim()
-                    def changedFiles = sh(
-                        script: 'git diff-tree --no-commit-id --name-only -r HEAD',
-                        returnStdout: true
-                    ).trim()
-
-                    // A manifest-only or script-only commit must not start a new image build.
-                    def codeFiles = changedFiles ? changedFiles.split('\\n').findAll { file ->
-                        !file.startsWith('k8s/') && !file.startsWith('scripts/')
-                    } : []
-                    def skipCiCommit = commitMessage ==~ /(?s).*\[(skip ci|ci skip)\].*/
-
-                    env.CODE_CHANGED = codeFiles && !skipCiCommit ? 'true' : 'false'
-                    env.SKIP_PIPELINE = env.CODE_CHANGED == 'true' ? 'false' : 'true'
-                    echo "Changed files: ${changedFiles ?: 'none'}"
-                    echo "Skip-CI commit: ${skipCiCommit}"
-                    echo "Application code changed: ${env.CODE_CHANGED}"
-
-                    if (env.CODE_CHANGED == 'false') {
-                        currentBuild.result = 'NOT_BUILT'
-                        echo 'Only Kubernetes manifests or pipeline scripts changed; skipping the build.'
-                    }
+                script{
+                    clone('https://github.com/kumarprakash21/k8s-book-manager-app.git','main')
                 }
             }
         }
+
         stage('Scan via Trivy'){
-            when { expression { env.CODE_CHANGED == 'true' } }
             steps {
                 echo "Scan started by Trivy"
                 sh 'trivy fs .'
@@ -60,25 +26,24 @@ pipeline {
             }
         }
         stage('Build') {
-            when { expression { env.CODE_CHANGED == 'true' } }
             steps {
                 echo 'This is building the docker image'
-                sh 'docker build -t ${IMAGE_NAME}:${IMAGE_TAG} .'
+                script{
+                    docker_build(Docker_Hub_user,IMAGE_NAME,IMAGE_TAG)
+                }
             }
         }
         stage('Scan Image via Trivy') {
-            when { expression { env.CODE_CHANGED == 'true' } }
             steps {
                 sh '''
                 trivy image \
                 --severity HIGH,CRITICAL \
                 --exit-code 1 \
-                ${IMAGE_NAME}:${IMAGE_TAG}
+                ${Docker_Hub_user}/${IMAGE_NAME}:${IMAGE_TAG}
                 '''
             }
         }
         stage('Push') {
-            when { expression { env.CODE_CHANGED == 'true' } }
             steps { 
                 withCredentials([
                     usernamePassword(credentialsId: 'dockerhub',
@@ -88,26 +53,11 @@ pipeline {
             echo "Pushing image to docker hub"
             echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
             
-            docker push ${IMAGE_NAME}:${IMAGE_TAG}
+            docker push ${Docker_Hub_user}/${IMAGE_NAME}:${IMAGE_TAG}
             '''
 }
 }
 }
-        stage('Update Manifest') {
-            when { expression { env.CODE_CHANGED == 'true' } }
-            steps {
-                withCredentials([usernamePassword(
-                credentialsId: 'github',
-                usernameVariable: 'GIT_USER',
-                passwordVariable: 'GIT_TOKEN'
-                )]) {
-                sh '''
-                    git remote set-url origin https://${GIT_USER}:${GIT_TOKEN}@github.com/kumarprakash21/k8s-book-manager-app.git
-                    chmod +x scripts/updatemanifestk8s.sh
-                    ./scripts/updatemanifestk8s.sh
-                    '''
-                    }
-                }
-            }
+
     }
 }
