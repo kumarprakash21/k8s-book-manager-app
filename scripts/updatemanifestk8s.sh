@@ -14,7 +14,7 @@ echo "Updated image:"
 grep image "$MANIFEST_FILE"
 
 if git diff --quiet -- "$MANIFEST_FILE"; then
-    echo "No image tag change detected; nothing to commit or push."
+    echo "No image tag change detected; nothing to commit or push.."
     exit 0
 fi
 
