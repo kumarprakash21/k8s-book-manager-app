@@ -17,7 +17,6 @@ pipeline {
                 }
             }
         }
-
         stage('Scan via Trivy'){
             steps {
                 echo "Scan started by Trivy"
