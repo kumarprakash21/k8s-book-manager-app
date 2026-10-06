@@ -45,7 +45,7 @@ pipeline {
         stage('Push') {
             steps { 
                 script{
-                    docker_push(Docker_Hub_user,IMAGE_NAME,IMAGE_TAG)
+                    docker_push(DOCKERHUB_USER,IMAGE_NAME,IMAGE_TAG)
                 }
                 
             }
