@@ -3,7 +3,7 @@ pipeline {
     agent any
    
     environment {
-        Docker_Hub_user = 'prakashgautam1998'
+        DOCKERHUB_USER = 'prakashgautam1998'
         IMAGE_NAME = 'book-app'
         IMAGE_TAG = "${BUILD_NUMBER}"
         MANIFEST_FILE = 'k8s/deployment.yml'
@@ -28,7 +28,7 @@ pipeline {
             steps {
                 echo 'This is building the docker image'
                 script{
-                    docker_build(Docker_Hub_user,IMAGE_NAME,IMAGE_TAG)
+                    docker_build(DOCKERHUB_USER,IMAGE_NAME,IMAGE_TAG)
                 }
             }
         }
@@ -38,7 +38,7 @@ pipeline {
                 trivy image \
                 --severity HIGH,CRITICAL \
                 --exit-code 1 \
-                ${Docker_Hub_user}/${IMAGE_NAME}:${IMAGE_TAG}
+                ${DOCKERHUB_USER}/${IMAGE_NAME}:${IMAGE_TAG}
                 '''
             }
         }
@@ -46,7 +46,8 @@ pipeline {
             steps { 
                 script{
                     docker_push(Docker_Hub_user,IMAGE_NAME,IMAGE_TAG)
-                }       
+                }
+                
             }
         }
     }
