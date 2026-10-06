@@ -47,10 +47,8 @@ pipeline {
             steps { 
                 script{
                     docker_push(Docker_Hub_user,IMAGE_NAME,IMAGE_TAG)
-                }
-                
+                }       
             }
         }
-
     }
 }
