@@ -3,7 +3,7 @@ This is 3-trie app for Book management app, build in frontend in HTML, backend i
 <img width="1821" height="671" alt="image" src="https://github.com/user-attachments/assets/b339a4dc-fc2f-485e-b7b4-4e32bbc41afe" />
 
 # First run all k8s file (deployment, namespace, service)
-
+######
 # To expose port to access in browser
 kubectl port-forward service/nginx-services -n nginx 8080:80 --address=0.0.0.0
 
